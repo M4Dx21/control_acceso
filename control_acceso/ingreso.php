@@ -11,7 +11,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["ingresar"])) {
     $empresa = $_POST["empresa"];
     $motivo = $_POST["motivo"];
 
-    // Usamos consultas preparadas para evitar inyecciones SQL
     if ($stmt = $conn->prepare("INSERT INTO registros (rut, nombre, empresa, motivo_ingreso, fecha_ingreso) VALUES (?, ?, ?, ?, NOW())")) {
         $stmt->bind_param("ssss", $rut, $nombre, $empresa, $motivo);
         if ($stmt->execute()) {
@@ -25,7 +24,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["ingresar"])) {
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["salida"])) {
     $id = $_POST["id"];
 
-    // Usamos consultas preparadas para evitar inyecciones SQL
     if ($stmt = $conn->prepare("UPDATE registros SET fecha_salida = NOW() WHERE id = ?")) {
         $stmt->bind_param("i", $id);
         if ($stmt->execute()) {
@@ -58,11 +56,21 @@ if ($result->num_rows > 0) {
             font-family: Arial, sans-serif;
             text-align: center;
             background-color: rgb(232, 242, 247);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
             margin: 0;
+            padding-top: 60px; 
+        }
+
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 27px;
+            z-index: 1000;
         }
 
         .container {
@@ -72,7 +80,7 @@ if ($result->num_rows > 0) {
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
             width: 100%;
             max-width: 950px; 
-            margin: 10px;
+            margin: 10px auto;
         }
 
         input, textarea, button {
@@ -122,14 +130,14 @@ if ($result->num_rows > 0) {
         }
 
         .salida-btn-table {
-            background: #dc3545;
+            background: rgb(204, 41, 57);
             color: white;
             border: none;
             cursor: pointer;
         }
 
         .salida-btn-table:hover {
-            background: #a71d2a;
+            background: rgb(151, 5, 19);
         }
 
         .msg {
@@ -181,8 +189,11 @@ if ($result->num_rows > 0) {
     </style>
 </head>
 <body>
+    <div class="header">
+        Control de Acceso Datacenter HFBC
+    </div>
+
     <div class="container">
-        <h2>Registro de Ingreso</h2>
         <div id="mensaje-container">
             <?php if (isset($mensaje)) echo $mensaje; ?>
         </div>
@@ -196,7 +207,7 @@ if ($result->num_rows > 0) {
         </form>
         
         <?php if (!empty($personas_dentro)): ?>
-            <h2>Personas dentro de la sala</h2>
+            <h3>Al terminar su visita apretar boton salir donde aparezcan sus datos para confirmar salida</h3>
             <table>
                 <thead>
                     <tr>
@@ -236,7 +247,7 @@ if ($result->num_rows > 0) {
                     msg.style.opacity = 1; 
                     setTimeout(function() {
                         msg.style.display = 'none'; 
-                    }, 3000);  // Tiempo extendido para mostrar el mensaje
+                    }, 3000);
                 }, 70); 
             }
         };
