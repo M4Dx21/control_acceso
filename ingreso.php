@@ -1,5 +1,6 @@
 <?php
 include 'db.php';
+
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["ingresar"])) {
     if (!isset($_POST["rut"]) || empty($_POST["rut"])) {
         die("Error: El campo RUT es obligatorio.");
@@ -10,28 +11,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["ingresar"])) {
     $empresa = $_POST["empresa"];
     $motivo = $_POST["motivo"];
 
-    $sql = "INSERT INTO registros (rut, nombre, empresa, motivo_ingreso, fecha_ingreso) 
-            VALUES ('$rut', '$nombre', '$empresa', '$motivo', NOW())";
-
-    if ($conn->query($sql) === TRUE) {
-        $mensaje = "<div class='msg success'><span class='icon'>&#10004;</span> Ingreso registrado correctamente.</div>";
-    } else {
-        $mensaje = "<div class='msg error'><span class='icon'>&#10060;</span> Error: " . $conn->error . "</div>";
+    if ($stmt = $conn->prepare("INSERT INTO registros (rut, nombre, empresa, motivo_ingreso, fecha_ingreso) VALUES (?, ?, ?, ?, NOW())")) {
+        $stmt->bind_param("ssss", $rut, $nombre, $empresa, $motivo);
+        if ($stmt->execute()) {
+            $mensaje = "<div class='msg success'><span class='icon'>&#10004;</span> Ingreso registrado correctamente.</div>";
+        } else {
+            $mensaje = "<div class='msg error'><span class='icon'>&#10060;</span> Error: " . $stmt->error . "</div>";
+        }
     }
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["salida"])) {
     $id = $_POST["id"];
-    $sql = "UPDATE registros SET fecha_salida = NOW() WHERE id = $id";
 
-    if ($conn->query($sql) === TRUE) {
-        $mensaje = "<div class='msg success'><span class='icon'>&#10004;</span> Salida registrada correctamente.</div>";
-    } else {
-        $mensaje = "<div class='msg error'><span class='icon'>&#10060;</span> Error al registrar salida: " . $conn->error . "</div>";
+    if ($stmt = $conn->prepare("UPDATE registros SET fecha_salida = NOW() WHERE id = ?")) {
+        $stmt->bind_param("i", $id);
+        if ($stmt->execute()) {
+            $mensaje = "<div class='msg success'><span class='icon'>&#10004;</span> Salida registrada correctamente.</div>";
+        } else {
+            $mensaje = "<div class='msg error'><span class='icon'>&#10060;</span> Error al registrar salida: " . $stmt->error . "</div>";
+        }
     }
 }
 
-$sql_check = "SELECT * FROM registros WHERE fecha_salida IS NULL";
+$sql_check = "SELECT id, rut, nombre, empresa, motivo_ingreso, fecha_ingreso, fecha_salida FROM registros WHERE fecha_salida IS NULL";
 $result = $conn->query($sql_check);
 $personas_dentro = [];
 
@@ -52,7 +55,7 @@ if ($result->num_rows > 0) {
         body {
             font-family: Arial, sans-serif;
             text-align: center;
-            background-color:rgb(232, 242, 247);
+            background-color: rgb(232, 242, 247);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -68,15 +71,14 @@ if ($result->num_rows > 0) {
             width: 100%;
             max-width: 950px; 
             margin: 10px;
-            align: center;
         }
 
         input, textarea, button {
-            width: 100%;
+            width: 90%;
             padding: 10px;
             margin: 2px 0;
             border: 1px solid #ccc;
-            border-radius: 10spx;
+            border-radius: 10px;
             font-size: 13px;
         }
 
@@ -118,14 +120,14 @@ if ($result->num_rows > 0) {
         }
 
         .salida-btn-table {
-            background: #dc3545;
+            background:rgb(204, 41, 57);
             color: white;
             border: none;
             cursor: pointer;
         }
 
         .salida-btn-table:hover {
-            background: #a71d2a;
+            background:rgb(151, 5, 19);
         }
 
         .msg {
@@ -178,7 +180,7 @@ if ($result->num_rows > 0) {
 </head>
 <body>
     <div class="container">
-        <h2>Registro de Ingreso</h2>
+        <h2>Ingreso a servidores</h2>
         <div id="mensaje-container">
             <?php if (isset($mensaje)) echo $mensaje; ?>
         </div>
@@ -232,7 +234,7 @@ if ($result->num_rows > 0) {
                     msg.style.opacity = 1; 
                     setTimeout(function() {
                         msg.style.display = 'none'; 
-                    }, 1000); 
+                    }, 3000);
                 }, 70); 
             }
         };
