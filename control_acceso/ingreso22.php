@@ -51,7 +51,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["ingresar"])) {
         if ($stmt = $conn->prepare("INSERT INTO registros (rut, nombre, empresa, motivo_ingreso, fecha_ingreso) VALUES (?, ?, ?, ?, NOW())")) {
             $stmt->bind_param("ssss", $rut, $nombre, $empresa, $motivo);
             if ($stmt->execute()) {
-                $mensaje = "<div class='msg success'><span class='icon'>&#10004;</span> Ingreso registrado correctamente.</div>";
+                $mensaje = "<div class='msg success' id='success-msg'><span class='icon'>&#10004;</span> Ingreso registrado correctamente.</div>";
             } else {
                 $mensaje = "<div class='msg error'><span class='icon'>&#10060;</span> Error: " . $stmt->error . "</div>";
             }
@@ -68,6 +68,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["salida"])) {
             $mensaje = "<div class='msg success'><span class='icon'>&#10004;</span> Salida registrada correctamente.</div>";
         } else {
             $mensaje = "<div class='msg error'><span class='icon'>&#10060;</span> Error al registrar salida: " . $stmt->error . "</div>";
+        }
+    }
+}
+
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["buscarRut"])) {
+    $rut = $_POST["rut"];
+    $rut = str_replace(array(".", "-"), "", $rut);
+    $sql = "SELECT nombre FROM registros WHERE rut = ?"; 
+    if ($stmt = $conn->prepare($sql)) {
+        $stmt->bind_param("s", $rut);
+        $stmt->execute();
+        $stmt->store_result();
+        if ($stmt->num_rows > 0) {
+            $stmt->bind_result($nombre);
+            $stmt->fetch();
+            echo json_encode(['nombre' => $nombre]);
+        } else {
+            echo json_encode(['nombre' => '']);
+        }
+    }
+    exit();
+    if (isset($_POST['rut'])) {
+        $rut = $_POST['rut'];
+    
+        $rut = str_replace(array(".", "-"), "", $rut);
+    
+        $stmt = $conn->prepare("SELECT nombre FROM registros WHERE rut = ?");
+        $stmt->bind_param("s", $rut);
+        $stmt->execute();
+        $result = $stmt->get_result();
+    
+        if ($result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            echo $row['nombre'];
+        } else {
+            echo '';
         }
     }
 }
@@ -90,7 +126,7 @@ if ($result->num_rows > 0) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control de Acceso</title>
     <style>
-        body {
+         body {
             font-family: Arial, sans-serif;
             text-align: center;
             background-color: rgb(232, 242, 247);
@@ -310,15 +346,14 @@ if ($result->num_rows > 0) {
             <?php if (isset($mensaje)) echo $mensaje; ?>
         </div>
 
-        <form method="POST" id="formulario-ingreso">
-            <input type="text" name="rut" id="rut" placeholder="RUT" required onblur="validarRUTInput()">
-            <div id="error-rut" class="error-message">Error: El RUT es inválido.</div>
-            <input type="text" name="nombre" placeholder="Nombre Completo" required>
-            <input type="text" name="empresa" placeholder="Empresa" required>
+        <form method="POST" id="form-ingreso">
+            <input type="text" name="rut" placeholder="RUT" required id="rut" oninput="buscarRut()">
+            <input type="text" name="nombre" placeholder="Nombre Completo" required id="nombre" readonly>
+            <input type="text" name="empresa" placeholder="Empresa" required id="empresa" readonly>
             <textarea name="motivo" placeholder="Motivo de ingreso (max 300)" required></textarea>
             <button type="submit" name="ingresar">Registrar Ingreso</button>
         </form>
-
+        
         <?php if (!empty($personas_dentro)): ?>
             <h3>Al terminar su visita apretar boton salir donde aparezcan sus datos para confirmar salida</h3>
             <table>
@@ -328,7 +363,6 @@ if ($result->num_rows > 0) {
                         <th>Nombre</th>
                         <th>Empresa</th>
                         <th>Motivo</th>
-                        <th>Ingreso</th>
                         <th>Salida</th>
                     </tr>
                 </thead>
@@ -340,12 +374,6 @@ if ($result->num_rows > 0) {
                         <td><?php echo htmlspecialchars($persona['nombre']); ?></td>
                         <td><?php echo htmlspecialchars($persona['empresa']); ?></td>
                         <td><?php echo htmlspecialchars($persona['motivo_ingreso']); ?></td>
-                        <td>
-                            <?php 
-                            $fecha_ingreso = new DateTime($persona['fecha_ingreso']);
-                                echo $fecha_ingreso->format('d/m H:i');
-                            ?>
-                        </td>
                         <td>
                             <form method="POST" style="display: inline;">
                                 <input type="hidden" name="id" value="<?php echo $persona['id']; ?>">
@@ -360,36 +388,51 @@ if ($result->num_rows > 0) {
     </div>
 
     <script>
+        function buscarRut() {
+            const rut = document.getElementById("rut").value;
+
+            if (rut.length >= 8) {
+                fetch("<?php echo $_SERVER['PHP_SELF']; ?>", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    body: `buscarRut=1&rut=${rut}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("nombre").value = data.nombre;
+                });
+            } else {
+                document.getElementById("nombre").value = '';
+            }
+        }
+
         window.onload = function() {
-            const msg = document.querySelector('.msg');
-            if (msg) {
-                msg.style.display = 'flex';
+            const successMsg = document.getElementById("success-msg");
+            const errorMsg = document.getElementById("error-rut");
+
+            if (successMsg) {
+                successMsg.style.display = 'flex';
                 setTimeout(function() {
-                    msg.style.opacity = 1; 
+                    successMsg.style.opacity = 1;
                     setTimeout(function() {
-                        msg.style.display = 'none'; 
+                        successMsg.style.display = 'none';
                     }, 3000);
-                }, 70); 
+                }, 70);
+            }
+
+            if (errorMsg) {
+                errorMsg.style.display = 'flex';
+                setTimeout(function() {
+                    errorMsg.style.opacity = 1;
+                    setTimeout(function() {
+                        errorMsg.style.display = 'none';
+                    }, 3000);
+                }, 70);
             }
         };
-    </script>
-
-    <script>
-    function validarRUTInput() {
-        const rutInput = document.getElementById("rut");
-        const errorRut = document.getElementById("error-rut");
-
-        const rut = rutInput.value.trim();
-        if (!validarRUT(rut)) {
-            rutInput.classList.add("input-error");
-            errorRut.style.display = "block";
-        } else {
-            rutInput.classList.remove("input-error");
-            errorRut.style.display = "none";
-        }
-    }
-
-    function validarRUT(rut) {
+        function validarRUT(rut) {
         rut = rut.replace(/[^\dKk]/g, '');
         if (rut.length < 8 || rut.length > 9) return false;
 
@@ -410,7 +453,7 @@ if ($result->num_rows > 0) {
         return dv === dvEsperado;
     }
 
-    document.getElementById("rut").addEventListener("input", function() {
+        document.getElementById("rut").addEventListener("input", function() {
         const rutInput = document.getElementById("rut");
         const errorRut = document.getElementById("error-rut");
 
@@ -419,6 +462,6 @@ if ($result->num_rows > 0) {
             errorRut.style.display = "none";
         }
     });
-</script>
+    </script>
 </body>
 </html>
